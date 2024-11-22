@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nested Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: "Geist", sans-serif;
+        }
+
+        ::-moz-selection, ::selection {
+            color: honeydew;
+            background: #303030;
+        }
+
+        #mainContainer {
+            display: block;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #mainContainer.hidden {
+            opacity: 0;
+            transform: scale(0.7);
+            pointer-events: none;
+            position: absolute;
+        }
+
+        #mainContainer:not(.hidden) {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .slide-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .slide-exit {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(-20px); }
+        }
+
+        .listItem {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 0.5rem;
+        }
+
+        .listItem:hover, .listItem:active {
+            background-color: #f9fafb;
+        }
+
+        .icon {
+            width: 16px;
+            stroke: #919191;
+        }
+
+        .title {
+            display: flex;
+            gap: 5px;
+        }
+
+        .nestedListItem {
+            padding: 6px 14px;
+            font-size: 0.9rem;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .nestedListItem:hover, .nestedListItem:active {
+            background-color: #f3f3f3;
+        }
+
+        .nestedContainer {
+            opacity: 0;
+            margin-top: 3px;
+            padding-left: 42px;
+            animation: fadeIn 200ms forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                margin-top: 0;
+            }
+        }
+
+        .slideIn {
+            transition: all 0.3s;
+            padding-bottom: 15px;
+            animation: slideInBlurredRight 0.3s ease-out forwards;
+        }
+
+        @keyframes slideInBlurredRight {
+            0% {
+                transform: translateX(30px) scaleX(2.5) scaleY(0.2);
+                filter: blur(40px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0) scaleY(1) scaleX(1);
+                filter: blur(0);
+                opacity: 1;
+            }
+        }
+
+        .backNavigation {
+            display: inline-flex;
+            gap: 5px;
+            padding: 5px;
+            margin: 10px 0 0 5px;
+            cursor: pointer;
+            background-color: #f4f4f4;
+            border-radius: 25px;
+        }
+
+        .notFoundItem {
+            color: #919191;
+            text-align: center;
+            padding: 1em;
+        }
+
+        .text-highlight {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        input[type="search"]::-webkit-search-cancel-button {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+<main class="h-screen grid place-items-center bg-[#dcdcdc]">
+    <div>
+        <label class="items-center justify-end cursor-pointer relative flex px-3 pb-1 items-end">
+            <span class="text-gray-900 font-serif">Text highlight</span>
+            <input type="checkbox" class="sr-only peer" id='text-highlight' checked/>
+            <div
+                    class="relative w-11 h-[23px] ml-3 bg-gray-200 rounded-full shadow-inner peer-checked:bg-[#ff2e31] peer-checked:after:translate-x-[20px] peer-checked:after:bg-white after:content-[''] after:absolute after:top-[1px] after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+        </label>
+        <div
+                id="mainContainer"
+                class="w-[450px] h-[370px] flex flex-col mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+            <div id="homePage" class="h-full flex flex-col">
+                <div class="p-4 border-b border-gray-200">
+                    <div class="relative">
+                        <svg class="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                                id="searchBox"
+                                type="search"
+                                placeholder="Search or jump to"
+                                class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+                                autocomplete="off"
+                        />
+                        <input type="checkbox" id="path" class="hidden peer" />
+                        <label for="path"
+                               class="cursor-pointer absolute right-1 top-[5px] rounded-md border-transparent peer-checked:bg-[#AFAFAF38] p-1">
+                            <svg width="20" height="22" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17 3C6.91074 14.7029 3.46281 18.5429 3 19" stroke="#AFAFAF"
+                                      stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </label>
+                    </div>
+                </div>
+                <div class="p-2 h-full overflow-y-auto">
+                    <div class="text-sm text-gray-500 px-3 py-2">CATEGORIES</div>
+                    <div id="category-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    const searchData = {
+        "Delivery Address": {
+            name: "Address",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>`,
+            data: [
+                {
+                    id: "addr-1",
+                    label: "Home Address",
+                    data: [
+                        {
+                            id: "home-1",
+                            label: "Primary",
+                            value: "123 Main St, City A",
+                            data: [
+                                { id: "garage-1", label: "Garage Entrance", value: "123 Main St - Garage" },
+                                { id: "backdoor-1", label: "Back Door", value: "123 Main St - Back Door" },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    id: "work-1",
+                    label: "Work Address",
+                    data: [
+                        {
+                            id: "hq-1",
+                            label: "Headquarters",
+                            value: "789 Office Blvd, City C",
+                            data: [
+                                { id: "mainoffice-1", label: "Main Office", value: "Room 100" },
+                                { id: "execsuite-1", label: "Executive Suite", value: "Room 200" },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        "Payment & Shipping": {
+            name: "Compensation and Logistics",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>`,
+            data: [
+                {
+                    id: "payment-1",
+                    label: "Payment Method",
+                    data: [
+                        {
+                            id: "creditcard-1",
+                            label: "Credit Card",
+                            value: "Visa",
+                            data: [
+                                { id: "card1", label: "Card Ending 1234", value: "John Doe" },
+                                { id: "card2", label: "Card Ending 5678", value: "Jane Smith" },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    id: "shipping-1",
+                    label: "Shipping Method",
+                    data: [
+                        {
+                            id: "express-1",
+                            label: "Express Delivery",
+                            value: "FedEx",
+                            data: [
+                                { id: "option1", label: "2-Day", value: "$12.99" },
+                                { id: "option2", label: "Overnight", value: "$24.99" },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        "Order Details": {
+            name: "Order characteristics",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>`,
+            data: [
+                {
+                    id: "order-1",
+                    label: "Order ID",
+                    value: "#12345",
+                    data: [
+                        { id: "tracking-1", label: "Tracking Number", value: "12345678" },
+                        { id: "invoice-1", label: "Invoice ID", value: "INV-56789" },
+                    ],
+                },
+                {
+                    id: "status-1",
+                    label: "Status",
+                    value: "Processing",
+                    data: [
+                        { id: "processing-1", label: "Processing Time", value: "2 Days" },
+                        { id: "priority-1", label: "Priority Level", value: "High" },
+                    ],
+                },
+            ],
+        },
+        "Product Info": {
+            name: "Product characteristics",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>`,
+            data: [
+                {
+                    id: "category-1",
+                    label: "Category",
+                    value: "Electronics",
+                    data: [
+                        { id: "subcategory-1", label: "Subcategory", value: "Mobile Phones" },
+                        { id: "brand-1", label: "Brand", value: "TechPro" },
+                    ],
+                },
+            ],
+        },
+        "Price Details": {
+            name: "Amount",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+      </svg>`,
+            data: [
+                {
+                    id: "subtotal-1",
+                    label: "Subtotal",
+                    value: "$499.99",
+                    data: [
+                        { id: "tax-1", label: "Tax", value: "$45.00" },
+                        { id: "shippingcost-1", label: "Shipping", value: "$12.99" },
+                    ],
+                },
+            ],
+        },
+        "Additional Info": {
+            name: "Value",
+            icon: () =>
+                `<svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>`,
+            data: [
+                {
+                    id: "loyalty-1",
+                    label: "Loyalty Points",
+                    value: "500",
+                    data: [
+                        { id: "tier-1", label: "Zeus", value: "Gold" },
+                        { id: "status-2", label: "Status", value: "Active" },
+                    ],
+                },
+            ],
+        },
+    };
+
+    const keys = Object.keys(searchData);
+    const mainContainer = document.getElementById('mainContainer');
+    const homePage = document.getElementById('homePage');
+    const searchBox = document.getElementById("searchBox");
+    const categoryList = document.getElementById("category-list");
+    const textHighlightEl = document.getElementById('text-highlight');
+    const pathEl = document.getElementById('path');
+    let filteredList = searchData;
+    let searchedItem = '';
+    let textHighlight = true, path = true;
+    let pathData = [];
+    let navigationStack = [searchData];
+
+    const navigationArrowRight = `
+  <svg xmlns="http://www.w3.org/2000/svg" height="24px" fill="#919191" viewBox="0 -960 960 960" width="24px">
+    <path d="M504-480 348-636q-11-11-11-28t11-28q11-11 28-11t28 11l184 184q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L404-268q-11 11-28 11t-28-11q-11-11-11-28t11-28l156-156Z"/>
+  </svg>`;
+    const navigationArrowLeft = `
+  <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#919191">
+    <path d="m432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z"/>
+  </svg>`;
+
+    window.addEventListener("DOMContentLoaded", () => {
+        renderInitialList();
+    });
+
+    textHighlightEl.addEventListener('change', e => textHighlight = e.target.checked);
+    pathEl.addEventListener('change', e => path = e.target.checked);
+
+    searchBox.addEventListener('keyup', (e) => {
+        pathData = [];
+        searchedItem = e.target.value;
+        categoryList.innerHTML = '';
+        keys.map(key => {
+            let flData = [];
+            if (!path) {
+                flData = searchData[key].data.filter(item =>
+                    item.label.toLowerCase().includes(e.target.value.toLowerCase())
+                );
+                filteredList = {
+                    ...filteredList,
+                    [key]: {
+                        ...searchData[key],
+                        data: flData
+                    }
+                };
+            } else {
+                searchData[key].data.map(item => {
+                    function findItem(item_, path = key) {
+                        if (item_.label.toLowerCase().includes(e.target.value.toLowerCase())) {
+                            path = path.concat('/', item_.label);
+                            pathData.push({ icon: searchData[key].icon(), path });
+                        } else if (!item_.label.toLowerCase().includes(e.target.value.toLowerCase()) && item_.data) {
+                            const newPath = path.concat('/', item_.label);
+                            item_.data?.map(item__ => findItem(item__, newPath));
+                        }
+                    }
+                    findItem(item);
+                });
+            }
+        });
+        if (!path) {
+            renderFilteredList();
+        } else {
+            renderPathBasedList();
+        }
+    });
+
+    function animateListContainer(container, isRemoving = false) {
+        container.classList.add(isRemoving ? 'slide-exit' : 'slide-enter');
+        if (isRemoving) {
+            container.addEventListener('animationend', () => {
+                container.remove();
+            }, { once: true });
+        }
+    }
+
+    function renderInitialList() {
+        categoryList.innerHTML = '';
+        keys.forEach(key => {
+            const listItem = document.createElement("div");
+            const innerDiv = document.createElement("div");
+            listItem.classList.add("listItem");
+            innerDiv.classList.add('title');
+            innerDiv.innerHTML = filteredList[key].icon();
+            innerDiv.firstElementChild.classList.add('icon');
+            innerDiv.firstElementChild.insertAdjacentHTML("afterend", key);
+            listItem.insertAdjacentElement('afterbegin', innerDiv);
+            listItem.firstElementChild.insertAdjacentHTML("afterend", navigationArrowRight);
+            listItem.addEventListener('click', () => renderNestedList(searchData[key]));
+            categoryList.append(listItem);
+        });
+    }
+
+    function renderFilteredList() {
+        Object.keys(filteredList).forEach(key => {
+            if (filteredList[key].data.length > 0) {
+                const listItem = document.createElement("div");
+                const innerDiv = document.createElement("div");
+                const nestedDataContainer = document.createElement('div');
+                Object.assign(innerDiv.style, { display: "flex", gap: "5px" });
+                listItem.classList.add("listItem");
+                innerDiv.innerHTML = filteredList[key].icon();
+                innerDiv.firstElementChild.classList.add('icon');
+                innerDiv.firstElementChild.insertAdjacentHTML("afterend", key);
+                listItem.insertAdjacentElement('afterbegin', innerDiv);
+                listItem.firstElementChild.insertAdjacentHTML("afterend", navigationArrowRight);
+                listItem.addEventListener('click', () => renderNestedList(filteredList[key]));
+                categoryList.append(listItem);
+
+                if (searchedItem !== '') {
+                    filteredList[key].data.map(item => {
+                        const list = renderHighlightedText(item.label, 'nestedListItem');
+                        nestedDataContainer.classList.add('nestedContainer');
+                        nestedDataContainer.append(list);
+                    });
+                    listItem.insertAdjacentElement('afterend', nestedDataContainer);
+                } else {
+                    nestedDataContainer.classList.remove('nestedContainer');
+                }
+            }
+        });
+    }
+
+    function renderPathBasedList() {
+        if (searchedItem !== '') {
+            if (pathData.length > 0) {
+                pathData.forEach(item => {
+                    const listItem = document.createElement("div");
+                    const innerDiv = document.createElement("div");
+                    listItem.classList.add("listItem");
+                    innerDiv.classList.add('title');
+                    innerDiv.innerHTML = item.icon;
+                    innerDiv.firstElementChild.classList.add('icon');
+                    innerDiv.firstElementChild.insertAdjacentElement("afterend", renderHighlightedText(item.path));
+                    listItem.insertAdjacentElement('afterbegin', innerDiv);
+                    categoryList.append(listItem);
+                });
+            } else {
+                const notFoundItem = document.createElement('div');
+                notFoundItem.classList.add('notFoundItem');
+                notFoundItem.innerText = 'No items found';
+                categoryList.append(notFoundItem);
+            }
+        } else {
+            renderInitialList();
+        }
+    }
+
+    function nestedLayout() {
+        document.getElementById('nestedItems')?.remove();
+        const lastProp = navigationStack[navigationStack.length - 1];
+        const childContainer = document.createElement('div');
+        const nestedListItems = document.createElement('div');
+        const backNavigation = document.createElement('button');
+        childContainer.id = 'nestedItems';
+        backNavigation.insertAdjacentHTML('afterbegin', navigationArrowLeft);
+        backNavigation.firstElementChild.insertAdjacentText('afterend', 'Back');
+        backNavigation.classList.add('backNavigation');
+        childContainer.insertAdjacentElement('afterbegin', backNavigation);
+        childContainer.insertAdjacentElement('beforeend', nestedListItems);
+
+        lastProp.data?.map(item => {
+            const itemDiv = document.createElement('div');
+            const endPos = document.createElement('div');
+            itemDiv.insertAdjacentText('afterbegin', item.label);
+            if (item.data?.length > 0) {
+                itemDiv.insertAdjacentElement('beforeend', endPos);
+                endPos.append(item.data?.length);
+                endPos.insertAdjacentHTML('beforeend', navigationArrowRight);
+                Object.assign(endPos.style, {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "14px",
+                    color: "#919191"
+                });
+            }
+            itemDiv.classList.add('listItem');
+            nestedListItems.append(itemDiv);
+            itemDiv.addEventListener('click', () =>
+            {
+                if (item.data) renderNestedList(item)
+            });
+        });
+
+        homePage.style.display = 'none';
+        mainContainer.appendChild(childContainer);
+        animateListContainer(childContainer);
+
+        backNavigation.addEventListener('click', () => {
+            if (navigationStack.length > 1) {
+                navigationStack.pop();
+                nestedLayout();
+            } else {
+                animateListContainer(childContainer, true);
+                homePage.style.display = 'block';
+
+            }
+        });
+    }
+
+    function renderNestedList(item) {
+        navigationStack.push(item);
+        nestedLayout();
+    }
+
+    function renderHighlightedText(label, className) {
+        const itemDiv = document.createElement("div");
+        itemDiv.classList.add(className);
+        const searchIndex = label.toLowerCase().indexOf(searchedItem.toLowerCase());
+        const beforeMatch = label.slice(0, searchIndex);
+        const matchedText = label.slice(searchIndex, searchIndex + searchedItem.length);
+        const afterMatch = label.slice(searchIndex + searchedItem.length);
+        const highlightedSpan = document.createElement("span");
+        highlightedSpan.textContent = matchedText;
+        highlightedSpan.style.backgroundColor = textHighlight ? "#ff2e31" : "";
+        highlightedSpan.style.color = textHighlight ? "#fff" : "#000";
+        itemDiv.appendChild(document.createTextNode(beforeMatch));
+        itemDiv.append(highlightedSpan);
+        itemDiv.append(document.createTextNode(afterMatch));
+
+        return itemDiv;
+    }
+
+</script>
+</body>
+</html>
